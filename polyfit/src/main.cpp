@@ -19,7 +19,7 @@ double polyeval(Eigen::VectorXd coeffs, double x) {
 // Adapted from
 // https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
 Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
-                        int order) {
+    int order) {
   assert(xvals.size() == yvals.size());
   assert(order >= 1 && order <= xvals.size() - 1);
   Eigen::MatrixXd A(xvals.size(), order + 1);
@@ -49,9 +49,11 @@ int main() {
 
   // TODO: use `polyfit` to fit a third order polynomial to the (x, y)
   // coordinates.
+  Eigen::VectorXd poly3 = polyfit(xvals, yvals, 3);
 
   for (double x = 0; x <= 20; x += 1.0) {
     // TODO: use `polyeval` to evaluate the x values.
+    std::cout << polyeval(poly3, x) << std::endl;
   }
 
   // Expected output

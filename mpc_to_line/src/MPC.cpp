@@ -11,8 +11,8 @@ namespace plt = matplotlibcpp;
 using CppAD::AD;
 
 // TODO: Set N and dt
-size_t N = ? ;
-double dt = ? ;
+size_t N = 20;
+double dt = 0.5;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -59,7 +59,24 @@ class FG_eval {
     // Reference State Cost
     // TODO: Define the cost related the reference state and
     // any anything you think may be beneficial.
-
+    AD<double> cost = 0;
+    //minimize errors
+    for (int i = 0; i < N; i++) {
+      cost += CppAD::pow(vars[cte_start + i], 2);
+      cost += CppAD::pow(vars[epsi_start + i], 2);
+      cost += CppAD::pow(vars[v_start + i] - ref_v, 2);
+    }
+    //minimize control inputs (actuators)
+    for (int i = 0; i < N - 1; i++) {
+      cost += CppAD::pow(vars[delta_start + i], 2);
+      cost += CppAD::pow(vars[a_start + i], 2);
+    }
+    //minimize sudden changes
+    for (int i = 0; i < N - 2; i++) {
+      cost += CppAD::pow(vars[delta_start + i] - vars[delta_start + i + 1], 2);
+      cost += CppAD::pow(vars[a_start + i] - vars[a_start + i + 1], 2);
+    }
+    fg[0] = cost;
     //
     // Setup Constraints
     //
@@ -80,10 +97,18 @@ class FG_eval {
     // The rest of the constraints
     for (int t = 1; t < N; t++) {
       AD<double> x1 = vars[x_start + t];
-
       AD<double> x0 = vars[x_start + t - 1];
+      AD<double> y1 = vars[x_start + t];
+      AD<double> y0 = vars[x_start + t - 1];
+      AD<double> psi1 = vars[psi_start + t];
       AD<double> psi0 = vars[psi_start + t - 1];
+      AD<double> v1 = vars[v_start + t];
       AD<double> v0 = vars[v_start + t - 1];
+      AD<double> cte1 = vars[cte_start + t];
+      AD<double> epsi1 = vars[epsi_start + t];
+      AD<double> epsi0 = vars[epsi_start + t - 1];
+      AD<double> delta0 = vars[delta_start + t -1];
+      AD<double> a0 = vars[a_start + t -1];
 
       // Here's `x` to get you started.
       // The idea here is to constraint this value to be 0.
@@ -94,6 +119,13 @@ class FG_eval {
 
       // TODO: Setup the rest of the model constraints
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
+      fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
+      fg[1 + psi_start + t] = psi1 - (psi0 + ((v0 / Lf) * delta0 * dt));
+      fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
+      AD<double> cte_des = coeffs[0] + coeffs[1] * x0;
+      fg[1 + cte_start + t] = cte1 - (cte_des + v0 * CppAD::sin(epsi0) * dt);
+      AD<double> epsi_des = CppAD::atan(coeffs[1]);
+      fg[1 + epsi_start + t] = epsi1 - (epsi_des + ((v0 / Lf) * delta0 * dt));
     }
   }
 };
@@ -263,7 +295,7 @@ int main() {
   ptsy << -1, -1;
 
   // TODO: fit a polynomial to the above x and y coordinates
-  auto coeffs = ? ;
+  auto coeffs = polyfit(ptsx, ptsy, 1);
 
   // NOTE: free feel to play around with these
   double x = -1;
@@ -271,9 +303,9 @@ int main() {
   double psi = 0;
   double v = 10;
   // TODO: calculate the cross track error
-  double cte = ? ;
+  double cte = polyeval(coeffs, x) - y;
   // TODO: calculate the orientation error
-  double epsi = ? ;
+  double epsi = psi - atan(coeffs[1]);
 
   Eigen::VectorXd state(6);
   state << x, y, psi, v, cte, epsi;
